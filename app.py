@@ -1,35 +1,87 @@
 import streamlit as st
-
 from utils import extract_text_from_pdf
-from matcher import match_score
+from matcher import match_score, get_missing_skills
 
-st.set_page_config(page_title="Resume Matcher")
+# Page config
+st.set_page_config(page_title="Resume Matcher", layout="wide")
 
+# Title
 st.title("Resume to Job Description Matcher")
+st.write("Upload multiple resumes and paste a Job Description to compare candidates.")
 
-st.write("Upload your resume and paste a Job Description to see how well you match.")
+# Two columns side by side - left for resumes, right for JD
+col1, col2 = st.columns(2)
 
-uploaded_resume = st.file_uploader("Upload your Resume (PDF)", type=["pdf"])
+with col1:
+    # accept_multiple_files=True allows uploading more than one PDF
+    uploaded_resumes = st.file_uploader(
+        "Upload Resumes (PDF)", 
+        type=["pdf"], 
+        accept_multiple_files=True
+    )
 
-job_description = st.text_area("Paste the Job Description here", height=250)
+with col2:
+    job_description = st.text_area("Paste the Job Description here", height=300)
 
-if st.button("Check Match Score"):
-        
-        if uploaded_resume is None or job_description.strip() == "":
-            st.warning("Please upload a resume and paste a job description.")
+# Button to trigger matching
+if st.button("Match Resumes"):
 
-        else:
-            resume_text = extract_text_from_pdf(uploaded_resume)
+    # Validate - make sure user uploaded at least one resume and pasted JD
+    if not uploaded_resumes or job_description.strip() == "":
+        st.warning("Please upload at least one resume and paste a job description.")
 
+    else:
+        st.divider()
+        st.subheader("Results")
+
+        # We create an empty list to store results for all resumes
+        results = []
+
+        # Loop through every uploaded resume one by one
+        for resume_file in uploaded_resumes:
+
+            # Extract text from this resume
+            resume_text = extract_text_from_pdf(resume_file)
+
+            # Calculate match score for this resume
             score = match_score(resume_text, job_description)
 
-            st.divider()
+            # Get missing skills for this resume
+            missing = get_missing_skills(resume_text, job_description)
 
-            st.metric(label="Match Score", value=f"{score} / 100")
+            # Store everything in a dictionary and add to results list
+            results.append({
+                "name": resume_file.name,
+                "score": score,
+                "missing": missing
+            })
 
-            if score >= 70:
-                st.success("Strong Match! Your resume aligns well with this job.")
-            elif score >= 40:
-                st.warning("Moderate Match. Consider adding more relevant keywords.")
+        # Sort results by score - highest score appears first
+        results = sorted(results, key=lambda x: x["score"], reverse=True)
+
+        # Now display results for each resume
+        for result in results:
+
+            # Show resume name and score side by side
+            st.markdown(f"### {result['name']}")
+            st.metric(label="Match Score", value=f"{result['score']} / 100")
+
+            # Show colored banner based on score
+            if result["score"] >= 70:
+                st.success("Strong Match!")
+            elif result["score"] >= 40:
+                st.warning("Moderate Match")
             else:
-                st.error("Low Match. Your resume needs more alignment with this JD.")
+                st.error("Low Match")
+
+            # Show missing skills in a clean expandable section
+            # expander hides the details until user clicks it - keeps UI clean
+            with st.expander("View Missing Skills"):
+                if result["missing"]:
+                    # We join all missing skills with a comma and show them
+                    st.write(", ".join(result["missing"][:30]))
+                    st.caption("Showing top 30 missing keywords from the Job Description")
+                else:
+                    st.write("No major missing skills found!")
+
+            st.divider()
