@@ -28,4 +28,8 @@ The scoring uses TF-IDF vectorization combined with cosine similarity to mathema
 
 ## Live Demo
 
-[Click here to try the live app]([YOUR_STREAMLIT_URL_HERE](https://resume-matcher-mmetptxcw5t3t9nnkkfsnw.streamlit.app/))
+https://resume-matcher-mmetptxcw5t3t9nnkkfsnw.streamlit.app
+
+Run the app:
+
+    streamlit run app.py
