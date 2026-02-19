@@ -26,26 +26,6 @@ The scoring uses TF-IDF vectorization combined with cosine similarity to mathema
 - KeyBERT
 - pdfplumber
 
-## Run Locally
-
-Clone the repository and navigate into the folder:
-
-git clone https://github.com/MayankVachhani14/resume-matcher.git
-cd resume-matcher
-
-Create and activate a virtual environment:
-
-python3.11 -m venv venv
-source venv/bin/activate
-
-Install dependencies:
-
-pip install -r requirements.txt
-
-Run the app:
-
-streamlit run app.py
-
 ## Live Demo
 
-[Click here to try the live app](YOUR_STREAMLIT_URL_HERE)
+[Click here to try the live app]([YOUR_STREAMLIT_URL_HERE](https://resume-matcher-mmetptxcw5t3t9nnkkfsnw.streamlit.app/))
