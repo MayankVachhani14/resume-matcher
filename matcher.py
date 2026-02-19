@@ -1,15 +1,14 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import spacy
+from keybert import KeyBERT
 
-# Load the spaCy English model once at the top
-# We load it here so it doesn't reload every time the function is called
-# Loading a model is slow - doing it once is efficient
-nlp = spacy.load("en_core_web_lg")
+# Load the KeyBERT model once at the top
+# Same reason as before - loading is slow, so we do it once
+kw_model = KeyBERT()
 
 
 def match_score(resume_text, jd_text):
-    # Same as before - TF-IDF converts text to numbers, cosine similarity compares them
+    # Same as always - TF-IDF + cosine similarity
     vectorizer = TfidfVectorizer()
     tfidf_matrix = vectorizer.fit_transform([resume_text, jd_text])
     score = cosine_similarity(tfidf_matrix[0], tfidf_matrix[1])
@@ -17,38 +16,40 @@ def match_score(resume_text, jd_text):
 
 
 def get_missing_skills(resume_text, jd_text):
-    # Pass the JD text through spaCy - it analyzes every word
-    # This is called "processing" the document
-    jd_doc = nlp(jd_text)
+    # KeyBERT extracts the most important keywords from the JD
+    # keyphrase_ngram_range=(1,2) means it can extract single words AND two word phrases
+    # So it can find both "Python" and "machine learning" not just single words
+    # top_n=20 means extract the top 20 most important keywords
+    # stop_words="english" automatically removes common English words
+    jd_keywords = kw_model.extract_keywords(
+        jd_text,
+        keyphrase_ngram_range=(1, 2),
+        stop_words="english",
+        top_n=20
+    )
 
-    # Pass the resume text through spaCy as well
-    resume_doc = nlp(resume_text)
-
-    # Extract meaningful words from JD
-    # We keep only NOUNS and PROPER NOUNS - these are where skills live
-    # .text gets the actual word, .lower() makes it lowercase
-    # token.is_alpha means we skip numbers and symbols
-    # len(token) > 2 skips tiny words like "it", "be"
+    # kw_model returns a list of tuples like [("python", 0.85), ("machine learning", 0.79)]
+    # The first item is the keyword, second is the confidence score
+    # We only keep keywords with confidence above 0.3 - anything lower is likely noise
     jd_skills = set(
-        token.lemma_.lower()
-        for token in jd_doc
-        if token.pos_ in ["NOUN", "PROPN"]
-        and token.is_alpha
-        and len(token) > 2
-        and not token.is_stop
+        keyword for keyword, score in jd_keywords
+        if score > 0.3
     )
 
-    # Do the same for resume
+    # Do the same for resume to find what skills the candidate already has
+    resume_keywords = kw_model.extract_keywords(
+        resume_text,
+        keyphrase_ngram_range=(1, 2),
+        stop_words="english",
+        top_n=30
+    )
+
     resume_skills = set(
-        token.lemma_.lower()
-        for token in resume_doc
-        if token.pos_ in ["NOUN", "PROPN"]
-        and token.is_alpha
-        and len(token) > 2
-        and not token.is_stop
+        keyword for keyword, score in resume_keywords
+        if score > 0.3
     )
 
-    # Find skills present in JD but missing from resume
+    # Find skills in JD that are not in resume
     missing = jd_skills - resume_skills
 
     return sorted(list(missing))
